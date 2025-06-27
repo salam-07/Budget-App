@@ -14,22 +14,46 @@ jobs:
     if: github.event_name == 'push' || (github.event_name == 'pull_request' && github.event.action != 'closed')
     runs-on: ubuntu-latest
     name: Build and Deploy Job
-    permissions:
-       id-token: write
-       contents: read
     steps:
       - uses: actions/checkout@v3
         with:
           submodules: true
           lfs: false
-
-      - name: Deploy to Azure Static Web App
+      
+      - name: Install OIDC Client from Core Package
+        run: npm install @actions/core@1.6.0 @actions/http-client
+      
+      - name: Get Id Token
+        uses: actions/github-script@v6
+        id: idtoken
+        with:
+          script: |
+            const coredemo = require('@actions/core')
+            return await coredemo.getIDToken()
+          result-encoding: string
+      
+      - name: Build And Deploy
         id: builddeploy
         uses: Azure/static-web-apps-deploy@v1
         with:
           azure_static_web_apps_api_token: ${{ secrets.AZURE_STATIC_WEB_APPS_API_TOKEN_BLUE_BEACH_01C371710 }}
           action: "upload"
-          app_location: "/" # Source code path
-          api_location: ""  # No APIs
-          output_location: "/" # Content directory (no build needed)
-          skip_app_build: true
+          app_location: "/" # App source code path
+          api_location: "" # Api source code path - optional
+          output_location: "." # Built app content directory - optional
+          github_id_token: ${{ steps.idtoken.outputs.result }}
+
+  close_pull_request_job:
+    if: github.event_name == 'pull_request' && github.event.action == 'closed'
+    runs-on: ubuntu-latest
+    name: Close Pull Request Job
+    steps:
+      - name: Close Pull Request
+        id: closepullrequest
+        uses: Azure/static-web-apps-deploy@v1
+        with:
+          azure_static_web_apps_api_token: ${{ secrets.AZURE_STATIC_WEB_APPS_API_TOKEN_BLUE_BEACH_01C371710 }}
+          action: "close"
+          app_location: "/"
+          api_location: ""
+          output_location: "."
