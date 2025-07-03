@@ -23,7 +23,7 @@ def get_table_client():
     return table_client
 
 @app.function_name("AddExpense")
-@app.route(route="api/addexpense", methods=["POST"])
+@app.route(route="addexpense", methods=["POST"])
 def add_expense(req: func.HttpRequest) -> func.HttpResponse:
     try:
         data = req.get_json()
