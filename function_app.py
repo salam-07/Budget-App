@@ -65,3 +65,24 @@ def get_total(req: func.HttpRequest) -> func.HttpResponse:
     entities = table_client.query_entities("PartitionKey eq 'expenses'")
     total = sum(float(e['amount']) for e in entities)
     return func.HttpResponse(json.dumps({'total': total}), mimetype="application/json")
+
+# DeleteExpense function: deletes all expenses with a given description
+@app.function_name("DeleteExpense")
+@app.route(route="deleteexpense", methods=["DELETE"])
+def delete_expense(req: func.HttpRequest) -> func.HttpResponse:
+    try:
+        data = req.get_json()
+        description = data.get('description')
+        if not description:
+            raise ValueError
+    except Exception:
+        return func.HttpResponse("Invalid input", status_code=400)
+    table_client = get_table_client()
+    # Find all entities with the given description
+    filter_query = f"PartitionKey eq 'expenses' and description eq '{description.replace("'", "''")}'"
+    entities = list(table_client.query_entities(filter_query))
+    if not entities:
+        return func.HttpResponse("No matching expense found", status_code=404)
+    for entity in entities:
+        table_client.delete_entity(partition_key=entity['PartitionKey'], row_key=entity['RowKey'])
+    return func.HttpResponse(f"Deleted {len(entities)} expense(s)", status_code=200)
