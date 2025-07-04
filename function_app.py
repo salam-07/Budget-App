@@ -79,7 +79,8 @@ def delete_expense(req: func.HttpRequest) -> func.HttpResponse:
         return func.HttpResponse("Invalid input", status_code=400)
     table_client = get_table_client()
     # Find all entities with the given description
-    filter_query = f"PartitionKey eq 'expenses' and description eq '{description.replace("'", "''")}'"
+    safe_description = description.replace("'", "''")
+    filter_query = f"PartitionKey eq 'expenses' and description eq '{safe_description}'"
     entities = list(table_client.query_entities(filter_query))
     if not entities:
         return func.HttpResponse("No matching expense found", status_code=404)
