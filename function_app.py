@@ -22,6 +22,8 @@ def get_table_client():
         pass
     return table_client
 
+
+# AddExpense function
 @app.function_name("AddExpense")
 @app.route(route="addexpense", methods=["POST"])
 def add_expense(req: func.HttpRequest) -> func.HttpResponse:
@@ -39,32 +41,66 @@ def add_expense(req: func.HttpRequest) -> func.HttpResponse:
         'RowKey': datetime.utcnow().strftime('%Y%m%d%H%M%S%f'),
         'description': description,
         'amount': str(amount),
-        'timestamp': datetime.utcnow().isoformat()
+        'timestamp': datetime.utcnow().isoformat(),
+        'type': 'expense'
     }
     table_client.upsert_entity(entity=entity, mode=UpdateMode.MERGE)
     return func.HttpResponse("Expense added", status_code=201)
 
-@app.function_name("GetExpenses")
-@app.route(route="getexpenses", methods=["GET"])
-def get_expenses(req: func.HttpRequest) -> func.HttpResponse:
+# AddIncome function
+@app.function_name("AddIncome")
+@app.route(route="addincome", methods=["POST"])
+def add_income(req: func.HttpRequest) -> func.HttpResponse:
+    try:
+        data = req.get_json()
+        description = data.get('description')
+        amount = float(data.get('amount'))
+        if not description or amount < 0:
+            raise ValueError
+    except Exception:
+        return func.HttpResponse("Invalid input", status_code=400)
+    table_client = get_table_client()
+    entity = {
+        'PartitionKey': 'expenses',
+        'RowKey': datetime.utcnow().strftime('%Y%m%d%H%M%S%f'),
+        'description': description,
+        'amount': str(amount),
+        'timestamp': datetime.utcnow().isoformat(),
+        'type': 'income'
+    }
+    table_client.upsert_entity(entity=entity, mode=UpdateMode.MERGE)
+    return func.HttpResponse("Income added", status_code=201)
+
+
+# GetHistory function: returns all transactions (income and expenses) with type
+@app.function_name("GetHistory")
+@app.route(route="gethistory", methods=["GET"])
+def get_history(req: func.HttpRequest) -> func.HttpResponse:
     table_client = get_table_client()
     entities = table_client.query_entities("PartitionKey eq 'expenses'")
-    expenses = [
+    history = [
         {
             'description': e['description'],
             'amount': e['amount'],
-            'timestamp': e['timestamp']
+            'timestamp': e['timestamp'],
+            'type': e.get('type', 'expense')
         } for e in entities
     ]
-    return func.HttpResponse(json.dumps(expenses), mimetype="application/json")
+    # Sort by timestamp descending
+    history.sort(key=lambda x: x['timestamp'], reverse=True)
+    return func.HttpResponse(json.dumps(history), mimetype="application/json")
 
+
+# GetTotal function: returns available money (income - expenses)
 @app.function_name("GetTotal")
 @app.route(route="gettotal", methods=["GET"])
 def get_total(req: func.HttpRequest) -> func.HttpResponse:
     table_client = get_table_client()
     entities = table_client.query_entities("PartitionKey eq 'expenses'")
-    total = sum(float(e['amount']) for e in entities)
-    return func.HttpResponse(json.dumps({'total': total}), mimetype="application/json")
+    total_income = sum(float(e['amount']) for e in entities if e.get('type', 'expense') == 'income')
+    total_expense = sum(float(e['amount']) for e in entities if e.get('type', 'expense') == 'expense')
+    available = total_income - total_expense
+    return func.HttpResponse(json.dumps({'available': available}), mimetype="application/json")
 
 # DeleteExpense function: deletes all expenses with a given description
 @app.function_name("DeleteExpense")
