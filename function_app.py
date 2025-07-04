@@ -45,7 +45,7 @@ def add_expense(req: func.HttpRequest) -> func.HttpResponse:
     return func.HttpResponse("Expense added", status_code=201)
 
 @app.function_name("GetExpenses")
-@app.route(route="api/getexpenses", methods=["GET"])
+@app.route(route="getexpenses", methods=["GET"])
 def get_expenses(req: func.HttpRequest) -> func.HttpResponse:
     table_client = get_table_client()
     entities = table_client.query_entities("PartitionKey eq 'expenses'")
@@ -59,7 +59,7 @@ def get_expenses(req: func.HttpRequest) -> func.HttpResponse:
     return func.HttpResponse(json.dumps(expenses), mimetype="application/json")
 
 @app.function_name("GetTotal")
-@app.route(route="api/gettotal", methods=["GET"])
+@app.route(route="gettotal", methods=["GET"])
 def get_total(req: func.HttpRequest) -> func.HttpResponse:
     table_client = get_table_client()
     entities = table_client.query_entities("PartitionKey eq 'expenses'")
